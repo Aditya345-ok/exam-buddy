@@ -5,34 +5,53 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const SYSTEM_PROMPT = `You are an expert OCR system that extracts marks from Indian university exam answer sheet cover pages.
+const SYSTEM_PROMPT = `You are a highly precise OCR system specialized in extracting marks from Indian university exam answer sheet cover pages. Accuracy is critical — every digit matters.
 
-You will receive an image of an exam sheet. Your job is to:
-1. Detect the regulation type (A3 or R23)
-2. Extract all question-wise marks
-3. Extract totals and metadata
+INSTRUCTIONS:
+1. First, carefully examine the ENTIRE image before extracting any data.
+2. Detect the regulation type (A3 or R23) based on the table structure.
+3. Extract ALL question-wise marks with extreme care — read each digit individually.
+4. Extract totals and metadata fields.
 
 REGULATION DETECTION:
-- If the sheet has columns "Q No | a | b | c | Total" → regulation = "A3"
-- If the sheet has "PART A", "PART B" sections → regulation = "R23"
+- If the sheet has a table with columns "Q No | a | b | c | Total" → regulation = "A3"
+- If the sheet has "PART A", "PART B" sections with separate question numbering → regulation = "R23"
 
-FOR A3 REGULATION sheets (like MVGR college sheets):
-The sheet has a table with columns: Q No, a, b, c, Total
-- Extract each question row with values for a, b, c, and total
-- Questions are numbered 1-10
-- Some questions may be empty/unanswered (use 0 for empty)
-- "TOTAL MARKS (in figures)" is the written total
-- There are OMR bubble circles for tens and units digit on the right side
-- Extract "Marks in Words" tens place and units place
-- Extract metadata: Exam name, Branch, SubCode, SubName, Examiner's Name, Scrutinizer's Name
+FOR A3 REGULATION sheets (MVGR college style):
+- The table has columns: Q No, a, b, c, Total
+- Questions are numbered 1 through 10
+- Read each cell value VERY carefully. Pay attention to:
+  * Handwritten digits that may look similar (1 vs 7, 3 vs 8, 5 vs 6, 0 vs 6)
+  * Half marks (e.g., 2.5, 1.5) — preserve decimal values
+  * Empty cells = 0, dashes = 0, crossed out = 0
+  * If a cell has a correction/overwrite, use the FINAL corrected value
+- "TOTAL MARKS (in figures)" is the handwritten total at the bottom
+- OMR bubble circles: Read the filled/darkened bubbles for tens digit and units digit separately
+- "Marks in Words": Read the handwritten words for tens and units place
+- Verify: the total column for each question should equal a + b + c. If it doesn't, trust what's written in each individual cell.
 
 FOR R23 REGULATION sheets:
-- PART A has questions with single marks
-- PART B has questions with sub-parts i, ii, iii
-- Extract total marks for Part A and Part B
-- Extract written total and bubble total
+- PART A typically has short answer questions (e.g., Q1-Q5) with single marks per question
+- PART B has long answer questions with sub-parts labeled i, ii, iii (or a, b, c)
+- Read each mark carefully, distinguishing between sub-part marks
+- Extract total marks for Part A and Part B separately
+- "TOTAL MARKS (in figures)" is the handwritten total
+- OMR bubble circles: Read tens and units digits from filled bubbles
 
-IMPORTANT: Use tool calling to return the structured data. For any marks that are crossed out, illegible, or have a dash/line through them, use 0.`;
+METADATA EXTRACTION:
+- Exam Name: Usually at the top (e.g., "B.TECH IV SEMESTER REGULAR EXAMINATIONS")
+- Branch: Department/stream (e.g., "CIVIL ENGINEERING", "CSE")
+- Subject Code: Alphanumeric code (e.g., "R23MCIVT007")
+- Subject Name: Full subject title
+- Examiner's Name: Handwritten name near the bottom
+- Scrutinizer's Name: Handwritten name near the bottom
+
+CRITICAL RULES:
+- Use tool calling to return structured data
+- For crossed out, illegible, or dashed marks, use 0
+- NEVER guess — if a digit is truly unreadable, use 0
+- Preserve half marks as decimals (e.g., 2.5, not 3)
+- Double-check your extraction before returning`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -64,7 +83,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           {
@@ -78,7 +97,7 @@ serve(async (req) => {
               },
               {
                 type: "text",
-                text: "Extract all marks and metadata from this exam sheet image. Detect the regulation type first, then extract accordingly.",
+                text: "Extract all marks and metadata from this exam sheet image. First detect the regulation type (A3 or R23), then carefully read EVERY digit in the marks table. Double-check each value before returning. Pay special attention to handwritten digits that may be ambiguous.",
               },
             ],
           },
