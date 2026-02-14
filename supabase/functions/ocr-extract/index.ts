@@ -59,14 +59,18 @@ serve(async (req) => {
   }
 
   try {
-    const { imageBase64, mimeType } = await req.json();
+    const { imageBase64, mimeType, pageIndex } = await req.json();
     
     if (!imageBase64) {
-      return new Response(JSON.stringify({ error: "No image provided" }), {
+      return new Response(JSON.stringify({ error: "No image/PDF provided" }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const actualMimeType = mimeType || 'image/png';
+    const isImage = actualMimeType.startsWith('image/');
+    const isPdf = actualMimeType === 'application/pdf';
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -89,15 +93,21 @@ serve(async (req) => {
           {
             role: "user",
             content: [
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:${mimeType || 'image/png'};base64,${imageBase64}`,
+              ...(isPdf ? [{
+                type: "file" as const,
+                file: {
+                  filename: "exam_sheet.pdf",
+                  file_data: `data:application/pdf;base64,${imageBase64}`,
                 },
-              },
+              }] : [{
+                type: "image_url" as const,
+                image_url: {
+                  url: `data:${actualMimeType};base64,${imageBase64}`,
+                },
+              }]),
               {
                 type: "text",
-                text: "Extract all marks and metadata from this exam sheet image. First detect the regulation type (A3 or R23), then carefully read EVERY digit in the marks table. Double-check each value before returning. Pay special attention to handwritten digits that may be ambiguous.",
+                text: `Extract all marks and metadata from this exam sheet${pageIndex !== undefined ? ` (page ${pageIndex + 1})` : ''}. First detect the regulation type (A3 or R23), then carefully read EVERY digit in the marks table. Double-check each value before returning. Pay special attention to handwritten digits that may be ambiguous.`,
               },
             ],
           },

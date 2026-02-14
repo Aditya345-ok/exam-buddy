@@ -15,12 +15,12 @@ export default function ImageUploader({ onImagesSelected, isProcessing }: ImageU
   const folderInputRef = useRef<HTMLInputElement>(null);
 
   const addFiles = useCallback((files: FileList | File[]) => {
-    const imageFiles = Array.from(files).filter((f) =>
-      f.type.startsWith("image/")
+    const validFiles = Array.from(files).filter(
+      (f) => f.type.startsWith("image/") || f.type === "application/pdf"
     );
-    const newPreviews = imageFiles.map((file) => ({
+    const newPreviews = validFiles.map((file) => ({
       file,
-      url: URL.createObjectURL(file),
+      url: file.type === "application/pdf" ? "" : URL.createObjectURL(file),
     }));
     setPreviews((prev) => [...prev, ...newPreviews]);
   }, []);
@@ -68,10 +68,10 @@ export default function ImageUploader({ onImagesSelected, isProcessing }: ImageU
         >
           <Upload className="h-12 w-12 text-muted-foreground mb-4" />
           <p className="text-lg font-medium mb-2">
-            Drag & drop exam sheet images here
+            Drag & drop exam sheet images or PDFs here
           </p>
           <p className="text-sm text-muted-foreground mb-4">
-            or use the buttons below
+            Supports JPG, PNG, PDF files and folders
           </p>
           <div className="flex gap-3">
             <Button
@@ -94,7 +94,7 @@ export default function ImageUploader({ onImagesSelected, isProcessing }: ImageU
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,.pdf,application/pdf"
             multiple
             className="hidden"
             onChange={(e) => e.target.files && addFiles(e.target.files)}
@@ -102,7 +102,7 @@ export default function ImageUploader({ onImagesSelected, isProcessing }: ImageU
           <input
             ref={folderInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,.pdf,application/pdf"
             multiple
             className="hidden"
             {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
@@ -128,11 +128,17 @@ export default function ImageUploader({ onImagesSelected, isProcessing }: ImageU
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
               {previews.map((p, i) => (
                 <div key={i} className="relative group rounded-lg overflow-hidden border">
-                  <img
-                    src={p.url}
-                    alt={p.file.name}
-                    className="w-full h-24 object-cover"
-                  />
+                  {p.file.type === "application/pdf" ? (
+                    <div className="w-full h-24 flex items-center justify-center bg-muted text-muted-foreground text-xs font-medium">
+                      PDF
+                    </div>
+                  ) : (
+                    <img
+                      src={p.url}
+                      alt={p.file.name}
+                      className="w-full h-24 object-cover"
+                    />
+                  )}
                   <button
                     onClick={() => removeImage(i)}
                     className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
