@@ -45,6 +45,8 @@ METADATA EXTRACTION:
 - Subject Name: Full subject title
 - Examiner's Name: Handwritten name near the bottom
 - Scrutinizer's Name: Handwritten name near the bottom
+- Bundle Number: A number identifying the bundle/packet of answer sheets (often printed or stamped)
+- Validation Number: A serial/validation number on the sheet (often printed or handwritten)
 
 CRITICAL RULES:
 - Use tool calling to return structured data
@@ -189,6 +191,14 @@ serve(async (req) => {
                       examinerName: { type: "string" },
                       scrutinizerName: { type: "string" },
                     },
+                  },
+                  bundleNumber: {
+                    type: "string",
+                    description: "Bundle number printed or handwritten on the sheet",
+                  },
+                  validationNumber: {
+                    type: "string",
+                    description: "Validation number printed or handwritten on the sheet",
                   },
                 },
                 required: ["regulation", "writtenTotal", "bubbleTotal"],

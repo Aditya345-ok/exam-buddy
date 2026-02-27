@@ -36,6 +36,8 @@ export interface ExtractedData {
   bubbleTotal: number;
   marksInWords?: string;
   metadata?: ExamMetadata;
+  bundleNumber?: string;
+  validationNumber?: string;
 }
 
 export interface ValidationResult {
