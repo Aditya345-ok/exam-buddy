@@ -9,7 +9,11 @@ export function exportToExcel(results: ProcessedSheet[]) {
     const base: Record<string, unknown> = {
       "Image Name": r.imageName,
       "Regulation": r.regulation,
+      "Bundle Number": r.data.bundleNumber || "",
+      "Validation Number": r.data.validationNumber || "",
     };
+
+    const qTotals: number[] = [];
 
     if (r.regulation === "A3" && r.data.questions) {
       r.data.questions.forEach((q) => {
@@ -17,21 +21,28 @@ export function exportToExcel(results: ProcessedSheet[]) {
         base[`Q${q.q}_b`] = q.b;
         base[`Q${q.q}_c`] = q.c;
         base[`Q${q.q}_Total`] = q.total;
+        qTotals.push(q.total);
       });
     } else if (r.regulation === "R23") {
       if (r.data.partA) {
         r.data.partA.forEach((q) => {
           base[`PartA_Q${q.q}`] = q.marks;
+          qTotals.push(q.marks);
         });
       }
       if (r.data.partB) {
         r.data.partB.forEach((q) => {
+          const subTotal = q.i + q.ii + q.iii;
           base[`PartB_Q${q.q}_i`] = q.i;
           base[`PartB_Q${q.q}_ii`] = q.ii;
           base[`PartB_Q${q.q}_iii`] = q.iii;
+          qTotals.push(subTotal);
         });
       }
     }
+
+    // Highest Score = max of individual question totals (Q1, Q2, Q3, ...)
+    base["Highest Score"] = qTotals.length > 0 ? Math.max(...qTotals) : 0;
 
     base["Calculated Total"] = r.validation.calculatedTotal;
     base["Written Total"] = r.validation.writtenTotal;
